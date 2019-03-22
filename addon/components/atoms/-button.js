@@ -1,7 +1,7 @@
-// BEGIN-SNIPPET nypr-button.js
+// BEGIN-SNIPPET button.js
 import Component from '@ember/component';
 import { computed } from '@ember/object';
-import layout from '../templates/components/nypr-button';
+import layout from '../../templates/components/atoms/-button';
 
 /**
   Base button. Use this component to compose more specific buttons and components.
