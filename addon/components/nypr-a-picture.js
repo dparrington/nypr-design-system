@@ -1,6 +1,10 @@
 // BEGIN-SNIPPET nypr-a-picture.js
 import Component from '@ember/component';
+// import { throttle, schedule, bind } from '@ember/runloop';
+
 import layout from '../templates/components/nypr-a-picture';
+
+// import { inViewport } from '../helpers/in-viewport';
 
 /**
   Picture element. Renders `<source>` elements for provided s, m, l, or xl breakpoints and images.
@@ -15,6 +19,34 @@ export default Component.extend({
   tagName: 'picture',
   classNames: ['o-picture'],
   layout,
+
+  didInsertElement() {
+    this._super(...arguments);
+    if (this.lazy) {
+      // TODO implement lazy loaded images
+      // add a class when the load event fires
+      // this._boundLoadHandler = bind(this, '_loadHandler');
+      // let image = this.element.querySelector('img');
+      // image.addEventListener('load', this._boundLoadHandler);
+      //
+      // if (inViewport(this.element)) {
+      //   schedule('afterRender', () => {
+      //     let img = this.element.querySelector('img');
+      //     img.src = img.getAttribute('data-src');
+      //   });
+      // }
+      //
+    }
+  },
+
+  willDestroy() {
+    this._super(...arguments);
+    if (typeof FastBoot === 'undefined' && this.lazy && this.element) {
+      // window.removeEventListener('scroll', this._boundLazyLoader);
+      let image = this.element.querySelector('img');
+      image.removeEventListener('load', this._boundLoadHandler);
+    }
+  },
 
   /**
     Extra Large Breakpoint
@@ -85,5 +117,12 @@ export default Component.extend({
     @type {String?}
   */
   alt: null,
+
+  _loadHandler(e) {
+    // don't add loaded class for encoded images
+    if (!e.target.src.startsWith('data:')) {
+      e.target.classList.add('is-loaded');
+    }
+  }
 });
 // END-SNIPPET

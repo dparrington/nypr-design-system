@@ -11,7 +11,9 @@
   <div class="c-slide__media u-spacing--half">
 
     <div class="c-slide__image">
-      <NyprAPicture @src-s={{@slide.full}} />
+      {{!-- TODO: refactor for lazy loaded images --}}
+      <NyprAPicture
+        @src-s={{@slide.full}} />
     </div>
 
     <div class="c-slide__meta l-wrap">

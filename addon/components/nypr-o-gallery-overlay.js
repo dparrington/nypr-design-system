@@ -1,10 +1,27 @@
 // BEGIN-SNIPPET nypr-o-gallery-overlay.js
+import imagesloaded from 'imagesloaded';
+
 import Component from '@ember/component';
 import { A } from '@ember/array';
 import { computed } from '@ember/object';
-import { debounce, bind } from '@ember/runloop';
+import { debounce, throttle, bind, schedule } from '@ember/runloop';
 
 import layout from '../templates/components/nypr-o-gallery-overlay';
+
+import { inViewport } from '../helpers/in-viewport';
+
+
+/**
+  Helper function to "wake up" lazy loaded images
+
+  @function wakeUp
+  @param {HTMLElement} slide Nested slide element
+  @return {void}
+*/
+const wakeUp = slide => {
+  let img = slide.querySelector('img');
+  img.src = img.getAttribute('data-src');
+}
 
 /**
   Gallery overlay
@@ -19,18 +36,36 @@ export default Component.extend({
 
   init() {
     this._super(...arguments);
-    if (typeof FastBoot === 'undefined') {
-      this.set('slideRefs', A([]));
-      this._boundListener = bind(this, '_scrollListener');
-      window.addEventListener('scroll', this._boundListener);
-    }
+    this.set('slideRefs', A([]));
   },
 
   didInsertElement() {
+    // make sure the body height matches the gallery height for scroll measure purposes
     if (this.takeover) {
-      this._boundResizeListener = bind(this, '_resizeListener');
+      this._boundResizeListener = bind(this, '_setBodyHeight');
       window.addEventListener('resize', this._boundResizeListener);
-      this._resizeListener();
+      this._setBodyHeight();
+    }
+
+    // track which slide is on screen
+    this._boundScrollListener = bind(this, '_activeSlideWatcher');
+    window.addEventListener('scroll', this._boundScrollListener);
+
+    // CSS transition
+    this.element.classList.add('is-active');
+
+    // make sure any image in the viewport as load time is loaded
+    // this._loadOnScreenSlides();
+    // wait for all slides to load before scrolling
+    if (this.activeImage) {
+      let index = this.activeImage;
+      let activeSlide = this.slideRefs[index];
+      imagesloaded(this.element.querySelectorAll('.c-slide'), () => {
+        let { top } = activeSlide.getBoundingClientRect();
+        let windowTop = top + window.scrollY;
+        let targetY = windowTop - (window.innerHeight / 2);
+        window.scrollTo(0, targetY);
+      });
     }
   },
 
@@ -129,21 +164,23 @@ export default Component.extend({
   },
 
   /**
-    Calls `viewedSlide` handler when a slide enters or exits a view
+    Handles some DOM management for scrolling events
+    - calls `viewedSlide` handler when a slide enters the viewport
+    - triggers network requests for images as they come into viewport
 
-    @method _scrollListener
+    @method _activeSlideWatcher
     @param {EventObject} event
     @return {void}
   */
-  _scrollListener(/* e */) {
-    debounce(this, () => {
+  _activeSlideWatcher(/* e */) {
+    throttle(this, () => {
       let i;
       let currentEl;
       let els = this.slideRefs;
 
       for (i = 0; i < els.length; i++) {
         let slide = els[i];
-        if (inViewport(slide)) {
+        if (inViewport(slide, {offset: {top: window.innerHeight / 2}})) {
           currentEl = slide;
           break;
         }
@@ -151,18 +188,39 @@ export default Component.extend({
 
       if (currentEl) {
         this.viewedSlide(this.slides[i], currentEl, i);
+        // TODO: implement lazy loading
+        // this._lazyLoadImages(currentEl, i);
       }
     }, 100);
   },
 
   /**
+    For a given slide, update its nested `<img/>` element's `src` attribute,
+    and do the same for the previous and following slides
+
+    @method _lazyLoadImages
+    @param {HTMLElement} slide
+    @param {Number} i given slide's index
+    @return {void}
+  */
+  _lazyLoadImages(slide, i) {
+    let slides = [
+      slide,
+      this.slideRefs[i+1],
+      this.slideRefs[i-1],
+    ];
+
+    slides.filter(s => !!s).forEach(wakeUp);
+  },
+
+  /**
     Force the body's height to match the gallery's height. Enables consistent measurements.
 
-    @method _resizeListener
+    @method _setBodyHeight
     @param {EventObject} event
     @return {void}
   */
-  _resizeListener(/* e */) {
+  _setBodyHeight(/* e */) {
     debounce(this, () => {
       let { height } = this.element.getBoundingClientRect();
       height = `${height}px`;
@@ -170,11 +228,27 @@ export default Component.extend({
         document.body.style.height = height;
       }
     }, 100);
+  },
+
+  /**
+    Find every slide that's in the viewport and load it
+
+    @method _loadOnScreenSlides
+    @return {void}
+  */
+  _loadOnScreenSlides() {
+    let els = this.slideRefs;
+    let found = [];
+
+    for (let i = 0; i < els.length; i++) {
+      let slide = els[i];
+      if (inViewport(slide)) {
+        found.push(slide);
+      }
+    }
+
+    found.forEach(wakeUp);
+
   }
 });
 // END-SNIPPET
-
-function inViewport(el) {
-  let { top, bottom } = el.getBoundingClientRect();
-  return top >= 0 && bottom <= window.innerHeight;
-}

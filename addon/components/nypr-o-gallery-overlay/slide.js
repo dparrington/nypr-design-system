@@ -3,6 +3,8 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import layout from '../../templates/components/nypr-o-gallery-overlay/slide';
 
+import { schedule } from '@ember/runloop';
+
 export default Component.extend({
   layout,
   classNames: ['c-slide', 'u-spacing--and-half'],
@@ -12,7 +14,13 @@ export default Component.extend({
     this.register(this.element);
 
     if (this.active) {
-      window.scrollTo(0, this.element.offsetTop - 200);
+      // TODO: refactor for lazy loaded images
+      // schedule('afterRender', () => {
+      //   let { height, top } = this.element.getBoundingClientRect();
+      //   let windowTop = top + window.scrollY;
+      //   let elementOffset = window.innerHeight - height;
+      //   window.scrollTo(0, windowTop + elementOffset);
+      // });
     }
   },
 
